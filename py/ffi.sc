@@ -25,7 +25,7 @@
 
 
 
-(library (fli pycall)
+(library (fli py ffi)
     (export
         py-sigle-input
         py-file-input
@@ -37,7 +37,11 @@
         py-end-interpreter
 
         py/int-from-long
-
+        py/int-from-size_t
+        py/int-from-ssize_t
+        py/int-as-long
+        py/int-as-ssize_t
+        
         py/long-from-long
         py/long-from-unsigned-long
         py/long-from-longlong
@@ -56,10 +60,32 @@
         py/float-as-double
         
         py/string-from-string
+        py/string-as-string
+
+        py/list-new
+        py/list-size
+        py/list-get-item
+        py/list-set-item!
+        py/list-insert!
+        py/list-append!
+        py/list-sort!
+        py/list-reverse!
 
         py/tuple-new
+        py/tuple-size
         py/tuple-set-item!
         py/tuple-get-item
+
+        py/dict-new
+        py/dict-size
+        py/dict-get-item
+        py/dict-set-item!
+        py/dict-del-item!
+        py/dict-clear
+        py/dict-copy
+        py/dict-keys
+        py/dict-values
+        py/dict-items
 
         py/run-simple-file
         py/run-file
@@ -79,12 +105,11 @@
         
         py/object-get-attr-string
         py/object-call-object
+        py/object-str
+        py/callable-check
     
         py-compile-string
-
-        py-import
-        py-from
-        py-define)
+        )
     (import
         (scheme))
 
@@ -101,6 +126,9 @@
 (define py-finalize
     (foreign-procedure "Py_Finalize" () void))
 
+(define py-decref
+    (foreign-procedure "Py_DECREF" (uptr) void))
+
 (define py-new-interpreter
     (foreign-procedure "Py_NewInterpreter" () uptr))
 
@@ -109,6 +137,18 @@
 
 (define py/int-from-long
     (foreign-procedure "PyInt_FromLong" (long) uptr))
+
+(define py/int-from-size_t
+    (foreign-procedure "PyInt_FromSize_t" (size_t) uptr))
+
+(define py/int-from-ssize_t
+    (foreign-procedure "PyInt_FromSsize_t" (ssize_t) uptr))
+
+(define py/int-as-long
+    (foreign-procedure "PyInt_AsLong" (uptr) long))
+
+(define py/int-as-ssize_t
+    (foreign-procedure "PyInt_AsSsize_t" (uptr) ssize_t))
 
 (define py/long-from-long
     (foreign-procedure "PyLong_FromLong" (long) uptr))
@@ -158,14 +198,74 @@
 (define py/string-from-string
     (foreign-procedure "PyString_FromString" (string) uptr))
 
+(define py/string-as-string
+    (foreign-procedure "PyString_AsString" (uptr) string))
+
+(define py/list-new
+    (foreign-procedure "PyList_New" (int) uptr))
+
+(define py/list-size
+    (foreign-procedure "PyList_Size" (uptr) ssize_t))
+
+(define py/list-get-item
+    (foreign-procedure "PyList_GetItem" (uptr ssize_t) uptr))
+
+(define py/list-set-item!
+    (foreign-procedure "PyList_SetItem" (uptr ssize_t uptr) int))
+
+(define py/list-insert!
+    (foreign-procedure "PyList_Insert" (uptr ssize_t uptr) int))
+
+(define py/list-append!
+    (foreign-procedure "PyList_Append" (uptr uptr) int))
+
+(define py/list-sort!
+    (foreign-procedure "PyList_Sort" (uptr) int))
+
+(define py/list-reverse!
+    (foreign-procedure "PyList_Reverse" (uptr) int))
+
 (define py/tuple-new
     (foreign-procedure "PyTuple_New" (int) uptr))
 
-(define py/tuple-set-item!
-    (foreign-procedure "PyTuple_SetItem" (uptr int uptr) void))
+(define py/tuple-size
+    (foreign-procedure "PyTuple_Size" (uptr) ssize_t))
 
 (define py/tuple-get-item
-    (foreign-procedure "PyTuple_GetItem" (uptr int) uptr))
+    (foreign-procedure "PyTuple_GetItem" (uptr ssize_t) uptr))
+
+(define py/tuple-set-item!
+    (foreign-procedure "PyTuple_SetItem" (uptr ssize_t uptr) int))
+
+(define py/dict-new
+    (foreign-procedure "PyDict_New" () uptr))
+
+(define py/dict-get-item
+    (foreign-procedure "PyDict_GetItem" (uptr uptr) uptr))
+
+(define py/dict-set-item!
+    (foreign-procedure "PyDict_SetItem" (uptr uptr uptr) int))
+
+(define py/dict-del-item!
+    (foreign-procedure "PyDict_DelItem" (uptr uptr) int))
+
+(define py/dict-clear
+    (foreign-procedure "PyDict_Clear" (uptr) void))
+
+(define py/dict-size
+    (foreign-procedure "PyDict_Size" (uptr) ssize_t))
+
+(define py/dict-keys
+    (foreign-procedure "PyDict_Keys" (uptr) uptr))
+
+(define py/dict-values
+    (foreign-procedure "PyDict_Values" (uptr) uptr))
+
+(define py/dict-items
+    (foreign-procedure "PyDict_Items" (uptr) uptr))
+
+(define py/dict-copy
+    (foreign-procedure "PyDict_Copy" (uptr) uptr))
 
 (define py/run-simple-file
     (foreign-procedure "PyRun_SimpleFile" (uptr string) int))
@@ -206,60 +306,35 @@
 (define py/module-get-filename
     (foreign-procedure "PyModule_GetFileName" (uptr) string))
 
-(define py/module-clear
-    (foreign-procedure "PyModule_Clear" (uptr) void))
+(define py/object-get-attr
+    (foreign-procedure "PyObject_GetAttr" (uptr uptr) uptr))
+
+(define py/object-set-attr!
+    (foreign-procedure "PyObject_SetAttr" (uptr uptr uptr) int))
+
+(define py/object-has-attr
+    (foreign-procedure "PyObject_HasAttr" (uptr uptr) int))
 
 (define py/object-get-attr-string
     (foreign-procedure "PyObject_GetAttrString" (uptr string) uptr))
 
+(define py/object-set-attr-string!
+    (foreign-procedure "PyObject_SetAttrString" (uptr string uptr) int))
+
+(define py/object-has-attr-string
+    (foreign-procedure "PyObject_HasAttrString" (uptr string) int))
+
 (define py/object-call-object
     (foreign-procedure "PyObject_CallObject" (uptr uptr) uptr))
 
+(define py/object-str 
+    (foreign-procedure "PyObject_Str" (uptr) uptr))
+
+(define py/callable-check
+    (foreign-procedure "PyCallable_Check" (uptr) int))
+
 (define py-compile-string
     (foreign-procedure "Py_CompileString" (string string int) uptr))
-
-
-(define-syntax py-import
-    (syntax-rules (as)
-        ((_ e)
-            (py/run-simple-string (string-append "import " (symbol->string e))))
-        ((_ e as k)
-            (py/run-simple-string (string-append "import " (symbol->string e) " as " (symbol->string k))))))
-
-(define-syntax py-from
-    (syntax-rules (import)
-        ((_ e import k)
-            (py/run-simple-string (string-append "from " (symbol->string e) " import " (symbol->string k))))))
-
-
-(define any->string
-    (lambda (a)
-        (cond
-            ((number? a) (number->string a))
-            ((symbol? a) (symbol->string a))
-            ((string? a) a)
-            (else (display "input must be number, symbol or string")))))            
-
-(define py-define 
-    (lambda (x y)
-        (py/run-simple-string (string-append (symbol->string x) " = " (any->string y)))))
-
-
-(define py-decorater
-    (lambda (x)
-        (py/run-simple-string (string-append  "@" (symbol->string x)))))
-
-(define list->*tuple
-    (lambda (lst)
-        (define len (length lst))
-        (define *p (py/tuple-new len))
-        (let loop ((n 0)(lst lst))
-            (if (< n len)
-                (begin
-                    (py/tuple-set-item! *p n (py/int-from-long (car lst)))
-                    (loop (+ n 1) (cdr lst)))
-                *p))))
-
 
 
 

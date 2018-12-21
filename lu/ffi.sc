@@ -25,7 +25,7 @@
 
 
 
-(library (fli mlcall)
+(library (fli lu ffi)
     (export)
     (import
         (scheme))

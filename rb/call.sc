@@ -25,10 +25,11 @@
 
 
 
-(library (fli gocall)
+(library (fli rb call)
     (export)
     (import
-        (scheme))
+        (scheme)
+        (fli rb ffi))
 
 
 )

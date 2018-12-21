@@ -25,7 +25,7 @@
 
 
 
-(library (fli rbcall)
+(library (fli ml ffi)
     (export)
     (import
         (scheme))

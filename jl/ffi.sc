@@ -25,7 +25,7 @@
 
 
 
-(library (fli jscall)
+(library (fli julia jl-ffi)
     (export)
     (import
         (scheme))
